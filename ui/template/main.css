@@ -1,0 +1,30 @@
+:root {
+    --NeutralColor: #fff;
+    --TintetNeutralColor: #eee;
+    --MainColor: #0000ff;
+    --AccentColor: #11a8ff;
+}
+
+body {
+    margin: 0;
+}
+
+header {
+    background-color: var(--AccentColor);
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+header h1 {
+    margin: 0;
+}
+
+
+main {
+    background-color: var(--NeutralColor);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+
+    align-items: center;
+}

@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GLIM</title>
+
+    <link rel="stylesheet" href="main.css">
+</head>
+<body>
+    <header>
+        <h1>GLIM</h1>
+    </header>
+
+
+    <main>
+        <div>
+            <input type="file" id="stlFile" accept=".stl">
+        </div>
+        <div>
+            <button onclick="calculateSurfaceArea()">Calculate Surface Area</button>
+        </div>
+        <p id="result"></p>
+    </main>
+
+    <script src="three.min.js"></script>
+    <script src="STLLoader.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
