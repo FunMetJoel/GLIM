@@ -1,0 +1,3 @@
+[submodule "GLIM/include/tinyPly"]
+	path = GLIM/include/tinyPly
+	url = https://github.com/ddiakopoulos/tinyply.git
