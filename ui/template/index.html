@@ -10,17 +10,37 @@
 <body>
     <header>
         <h1>GLIM</h1>
+        <p>%status%</p>
     </header>
 
 
     <main>
         <div>
-            <input type="file" id="stlFile" accept=".stl">
+            <input type="file" id="stlFile" accept=".stl" onchange="calculateSurfaceArea()">
+            <p id="resultSurface"></p>
+            <p id="resultBounds"></p>
         </div>
-        <div>
-            <button onclick="calculateSurfaceArea()">Calculate Surface Area</button>
-        </div>
-        <p id="result"></p>
+        <hr>
+        <h2>Settings</h2>
+        <select>
+            <optgroup label="Metric">
+                <option value="meter">Meter</option>
+                <option value="decimeter">Decimeter</option>
+                <option value="centimeter">Centimeter</option>
+                <option value="milimeter">Milimeter</option>
+            </optgroup>
+            <optgroup label="Imperial">
+                <option value="inch">Inch</option>
+            </optgroup>
+        </select>
+        <!-- 
+            Voor elke 0,25 cm^2 geld 0.375 A
+            voor elke cm^2 geld 1.5 A
+        -->
+
+        <p>Recomended: <span id="current"></span></p>
+        <hr>
+        <button>Start</button>
     </main>
 
     <script src="three.min.js"></script>

@@ -1,10 +1,21 @@
+var StlFileInput;
+var StlGeometry;
+
+window.onload = function() {
+    StlFileInput = document.getElementById('stlFile');
+}
+
+
+
+
+
+
 function calculateSurfaceArea() {
-    const fileInput = document.getElementById('stlFile');
-    const resultElement = document.getElementById('result');
-    const file = fileInput.files[0];
+    const resultElement = document.getElementById('resultSurface');
+    const file = StlFileInput.files[0];
 
     if (!file) {
-        alert("Please select an STL file first.");
+        alert("Selecteer eerst een STL bestand");
         return;
     }
 
@@ -29,10 +40,40 @@ function calculateSurfaceArea() {
             totalArea += calculateTriangleArea(a, b, c);
         }
 
-        resultElement.textContent = `Total Surface Area: ${totalArea.toFixed(4)} square units`;
+        resultElement.textContent = `Total Surface Area: ${totalArea.toFixed(3)} square units`;
     };
 
     reader.readAsArrayBuffer(file);
+
+    calculateDimentions()
+}
+
+function calculateDimentions() {
+    const resultElement = document.getElementById('resultBounds');
+    const file = StlFileInput.files[0];
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const arrayBuffer = event.target.result;
+        const loader = new THREE.STLLoader();
+        const geometry = loader.parse(arrayBuffer);
+
+        geometry.computeBoundingBox();
+        const boundingbox = geometry.boundingBox;
+
+        const width = boundingbox.max.x - boundingbox.min.x
+        const height = boundingbox.max.y - boundingbox.min.y
+        const depth = boundingbox.max.z - boundingbox.min.z
+
+        resultElement.textContent = `X:${width.toFixed(3)}, Y:${height.toFixed(3)}, Z:${depth.toFixed(3)}`
+
+    }
+    reader.readAsArrayBuffer(file);
+
+}
+
+function updateRecomendation() {
+    const currentSpan = document.getElementById('current')
 }
 
 function calculateTriangleArea(a, b, c) {

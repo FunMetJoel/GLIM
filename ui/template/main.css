@@ -13,6 +13,9 @@ header {
     background-color: var(--AccentColor);
     padding: 10px;
     margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 header h1 {
@@ -25,6 +28,9 @@ main {
     width: 100%;
     display: flex;
     flex-direction: column;
-
     align-items: center;
+}
+
+main hr {
+    width: 100%;
 }

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>STL File Viewer</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #upload { position: absolute; top: 20px; left: 20px; z-index: 10; }
+    </style>
+</head>
+<body>
+    <input type="file" id="upload" accept=".stl" />
+    <script src="three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
+    <script src="STLLoader.js"></script>
+    <script>
+        // Set up the scene, camera, and renderer
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // OrbitControls for better interaction
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.25;
+        controls.enableZoom = true;
+
+        // Add ambient and directional light
+        const ambientLight = new THREE.AmbientLight(0x404040); // Soft white light
+        scene.add(ambientLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(1, 1, 1).normalize();
+        scene.add(directionalLight);
+
+        // Axes helper
+        const axesHelper = new THREE.AxesHelper(5);
+        scene.add(axesHelper);
+
+        // Set the initial camera position
+        camera.position.set(3, 3, 3);
+        camera.lookAt(0, 0, 0);
+
+        // Handle STL file upload
+        document.getElementById('upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const contents = e.target.result;
+                const loader = new THREE.STLLoader();
+                const geometry = loader.parse(contents);
+
+                // Clear previous object
+                scene.clear();
+                scene.add(ambientLight);
+                scene.add(directionalLight);
+                scene.add(axesHelper);
+
+                // Create a material and mesh
+                const material = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
+                const mesh = new THREE.Mesh(geometry, material);
+
+                // Center and scale the mesh
+                geometry.center();
+                geometry.computeBoundingBox();
+                const boundingBox = geometry.boundingBox;
+                const maxDim = Math.max(
+                    boundingBox.max.x - boundingBox.min.x,
+                    boundingBox.max.y - boundingBox.min.y,
+                    boundingBox.max.z - boundingBox.min.z
+                );
+                mesh.scale.setScalar(2 / maxDim);
+
+                // Add the mesh to the scene
+                scene.add(mesh);
+
+                // Adjust the camera based on the bounding box
+                const size = maxDim * 1.5;
+                camera.position.set(size, size, size);
+                controls.update();
+            };
+
+            reader.readAsArrayBuffer(file);
+        });
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // Handle window resize
+        window.addEventListener('resize', function() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
