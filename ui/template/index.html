@@ -22,29 +22,34 @@
         </div>
         <hr>
         <h2>Settings</h2>
-        <select>
+        <select id="UnitSelect" onchange="updateRecomendation()">
             <optgroup label="Metric">
                 <option value="meter">Meter</option>
                 <option value="decimeter">Decimeter</option>
                 <option value="centimeter">Centimeter</option>
-                <option value="milimeter">Milimeter</option>
+                <option value="milimeter" selected>Milimeter</option>
             </optgroup>
             <optgroup label="Imperial">
                 <option value="inch">Inch</option>
+                <option value="foot">Foot</option>
             </optgroup>
         </select>
         <!-- 
             Voor elke 0,25 cm^2 geld 0.375 A
-            voor elke cm^2 geld 1.5 A
+            Voor elke cm^2 geld 1.5 A
         -->
 
-        <p>Recomended: <span id="current"></span></p>
+        <p>Recomended: <span id="current">???</span> A</p>
+        <canvas id="CurveEditor">
+
+        </canvas>
         <hr>
         <button>Start</button>
     </main>
 
     <script src="three.min.js"></script>
     <script src="STLLoader.js"></script>
+    <script src="curveGraph.js"></script>
     <script src="main.js"></script>
 </body>
 </html>

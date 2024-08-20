@@ -1,8 +1,11 @@
 var StlFileInput;
 var StlGeometry;
+var SurfaceArea;
+var graph;
 
 window.onload = function() {
     StlFileInput = document.getElementById('stlFile');
+    graph = new curveGraph(document.getElementById('CurveEditor'))
 }
 
 function loadStlFile() {
@@ -16,6 +19,7 @@ function loadStlFile() {
     getStlGeometry(file, callback = function() {
         calculateSurfaceArea();
         calculateDimentions();
+        updateRecomendation();
     });
 }
 
@@ -27,7 +31,7 @@ function getStlGeometry(file, callback) {
         const loader = new THREE.STLLoader();
         StlGeometry = loader.parse(arrayBuffer);
 
-        callback()
+        callback();
     };
 
     reader.readAsArrayBuffer(file);
@@ -50,6 +54,8 @@ function calculateSurfaceArea() {
         totalArea += calculateTriangleArea(a, b, c);
     }
 
+    SurfaceArea = totalArea
+
     resultElement.textContent = `Total Surface Area: ${totalArea.toFixed(3)} square units`;
 }
 
@@ -59,15 +65,49 @@ function calculateDimentions() {
     StlGeometry.computeBoundingBox();
     const boundingbox = StlGeometry.boundingBox;
 
-    const width = boundingbox.max.x - boundingbox.min.x
-    const height = boundingbox.max.y - boundingbox.min.y
-    const depth = boundingbox.max.z - boundingbox.min.z
+    const width = boundingbox.max.x - boundingbox.min.x;
+    const height = boundingbox.max.y - boundingbox.min.y;
+    const depth = boundingbox.max.z - boundingbox.min.z;
 
-    resultElement.textContent = `X:${width.toFixed(3)}, Y:${height.toFixed(3)}, Z:${depth.toFixed(3)}`
+    resultElement.textContent = `X:${width.toFixed(3)}, Y:${height.toFixed(3)}, Z:${depth.toFixed(3)}`;
 }
 
 function updateRecomendation() {
-    const currentSpan = document.getElementById('current')
+    const currentSpan = document.getElementById('current');
+    const unit = document.getElementById('UnitSelect').value;
+
+    var SurfaceAreaInSquareCm;
+
+    if (!SurfaceArea) {
+        currentSpan.textContent = "???";
+        return;
+    } 
+
+    switch (unit) {
+        case 'meter':
+            SurfaceAreaInSquareCm = SurfaceArea * 10000;
+            break;
+        case 'decimeter':
+            SurfaceAreaInSquareCm = SurfaceArea * 100;
+            break;
+        case 'centimeter':
+            SurfaceAreaInSquareCm = SurfaceArea;
+            break;
+        case 'milimeter':
+            SurfaceAreaInSquareCm = SurfaceArea * 0.01;
+            break;
+        case 'inch':
+            SurfaceAreaInSquareCm = SurfaceArea * 6.4516;
+            break;
+        case 'foot':
+            SurfaceAreaInSquareCm = SurfaceArea * 929.0304;
+            break;
+        default:
+            throw new Error(`No handeling for Unit '${unit}' defined`);
+            break;
+    }
+
+    currentSpan.textContent = (SurfaceAreaInSquareCm * 1.5).toFixed(2);
 }
 
 function calculateTriangleArea(a, b, c) {

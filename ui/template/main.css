@@ -34,3 +34,7 @@ main {
 main hr {
     width: 100%;
 }
+
+canvas#CurveEditor {
+    border: 1px solid black
+}
