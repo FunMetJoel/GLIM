@@ -8,9 +8,9 @@ class curveGraph {
 
         this.redraw();
         
-        canvas.onmousedown = function(e){
-            this.onMouseDown(this, e);
-        };
+        canvas.onmousedown = this.onMouseDown.bind(this);
+        canvas.onmousemove = this.onMouseMove.bind(this);
+        canvas.onmouseup = this.onMouseUp.bind(this);
 
     }
 
@@ -18,30 +18,56 @@ class curveGraph {
         var rect = this.canvas.getBoundingClientRect();
         var x = event.clientX - rect.left;
         var y = event.clientY - rect.top;
-        return {x:X, y:y};
+        return {x:x, y:y};
     }
 
-    onMouseDown(curvegraph, e) {
-        curvegraph.redraw()
-        var pos = curvegraph.getCursorPos(e);
-        dragPointIndex = curvegraph.getPointAt(pos)
-        if (dragPointIndex == -1) {
-            curvegraph.points.push(curvegraph.calculatePointFromCanvasPoint(pos));
-            dragPointIndex = curvegraph.points.length - 1;
-            redraw()
+    onMouseDown(e) {
+        var pos = this.getCursorPos(e);
+        this.dragPointIndex = this.getPointAt(pos)
+        if (this.dragPointIndex == -1) {
+            this.points.push(this.calculatePointFromCanvasPoint(pos));
+            this.dragPointIndex = this.points.length - 1;
         }
+        this.redraw()
+        this.redraw()
+    }
+
+    onMouseMove(e) {
+        if (this.dragPointIndex == -1){
+            return;
+        }
+        var pos = this.getCursorPos(e)
+        pos = this.calculatePointFromCanvasPoint(pos)
+        this.points[this.dragPointIndex].x = pos.x;
+        this.points[this.dragPointIndex].y = pos.y;
+        this.redraw()
+        this.redraw()
+    }
+
+    onMouseUp(e) {
+        this.dragPointIndex = -1;
+    }
+    
+    getSortedPoints() {
+        return this.points.slice().sort((a,b) => a.x - b.x);
     }
 
     redraw() {
-        this.drawLine({x:0, y:this.points[0].y}, this.points[0])
-        this.drawPoint(this.points[0])
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+
+        // this.bzCurve()
+
+        const sortedPoints = this.getSortedPoints()
+
+        this.drawLine({x:0, y:sortedPoints[0].y}, sortedPoints[0])
+        this.drawPoint(sortedPoints[0])
         
-        for (var i = 1; i < this.points.length; i++){
-            this.drawPoint(this.points[i])
-            this.drawLine(this.points[i-1], this.points[i])
+        for (var i = 1; i < sortedPoints.length; i++){
+            this.drawPoint(sortedPoints[i])
+            this.drawLine(sortedPoints[i-1], sortedPoints[i])
         }
 
-        this.drawLine({x:1, y:this.points[this.points.length -1].y}, this.points[this.points.length -1])
+        this.drawLine(sortedPoints[sortedPoints.length -1], {x:1, y:sortedPoints[sortedPoints.length -1].y})
     }
 
     drawLine(point1, point2) {
@@ -77,19 +103,65 @@ class curveGraph {
         return {x:X, y:Y};
     }
 
-    
-
     getPointAt(canvasPoint) {
-        p = this.calculatePointFromCanvasPoint(canvasPoint)
+        var p;
         for (var i = 0; i < this.points.length; i++) {
+            p = this.calculateCanvasPoint(this.points[i])
             if (
-                Math.abs(this.points[i].x - p.x) < 2 &&
-                Math.abs(this.points[i].y - p.y) < 2
+                Math.abs(p.x - canvasPoint.x) < 4 &&
+                Math.abs(p.y - canvasPoint.y) < 4
             ){
                 return i;
             }
         }
         return -1;
+    }
+
+    gradient (a, b) {
+        return (b.y-a.y)/(b.x-a.x)
+    }
+
+    bzCurve(f=0.3, t=0.6) {
+        var canvaspoints = [];
+
+        this.getSortedPoints().forEach(element => {
+            canvaspoints.push(this.calculateCanvasPoint(element));
+        });
+
+        this.ctx.beginPath();
+        this.ctx.moveTo(canvaspoints[0].x, canvaspoints[0].y);
+
+        var m = 0;
+        var dx1 = 0;
+        var dy1 = 0;
+        var dx2 = 0;
+        var dy2 = 0;
+
+        var preP = canvaspoints[0];
+
+        for (var i = 1; i < canvaspoints.length; i++) {
+            var curP = canvaspoints[i];
+            var nexP = canvaspoints[i + 1];
+            if (nexP) {
+                m = this.gradient(preP, nexP);
+                dx2 = (nexP.x - curP.x) * -f;
+                dy2 = dx2 * m * t;
+            } else {
+                dx2 = 0;
+                dy2 = 0;
+            }
+
+            this.ctx.bezierCurveTo(
+                preP.x - dx1, preP.y - dy1,
+                curP.x + dx2, curP.y + dy2,
+                curP.x, curP.y
+            );
+
+            dx1 = dx2;
+            dy1 = dy2;
+            preP = curP;
+        }
+        this.ctx.stroke();
     }
 
 
