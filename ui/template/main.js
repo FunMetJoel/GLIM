@@ -85,29 +85,29 @@ function updateRecomendation() {
 
     switch (unit) {
         case 'meter':
-            SurfaceAreaInSquareCm = SurfaceArea * 10000;
+            SurfaceAreaInSquareDm = SurfaceArea * 100;
             break;
         case 'decimeter':
-            SurfaceAreaInSquareCm = SurfaceArea * 100;
+            SurfaceAreaInSquareDm = SurfaceArea;
             break;
         case 'centimeter':
-            SurfaceAreaInSquareCm = SurfaceArea;
+            SurfaceAreaInSquareDm = SurfaceArea * 0.01;
             break;
         case 'milimeter':
-            SurfaceAreaInSquareCm = SurfaceArea * 0.01;
+            SurfaceAreaInSquareDm = SurfaceArea * 0.0001;
             break;
         case 'inch':
-            SurfaceAreaInSquareCm = SurfaceArea * 6.4516;
+            SurfaceAreaInSquareDm = SurfaceArea * 0.254;
             break;
         case 'foot':
-            SurfaceAreaInSquareCm = SurfaceArea * 929.0304;
+            SurfaceAreaInSquareDm = SurfaceArea * 3.04800;
             break;
         default:
             throw new Error(`No handeling for Unit '${unit}' defined`);
             break;
     }
 
-    currentSpan.textContent = (SurfaceAreaInSquareCm * 1.5).toFixed(2);
+    currentSpan.textContent = (SurfaceAreaInSquareDm * 1 /*A*/).toFixed(2);
 }
 
 function calculateTriangleArea(a, b, c) {
