@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Vite App</title>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="/src/style.css" />
+    <script type="importmap">
+      {
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+          "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/",
+          "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/loaders/STLLoader": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/STLLoader.js"
+        }
+			}
+    </script>
+  </head>
+  <body>
+    <main>
+      <div id="SceneVieuw">
+        <canvas id="Vieuwer"></canvas>
+      </div>
+      <div id="sidebar">
+        <h1>GLIM slicer</h1>
+        <hr>
+        <div id="modelImport">
+          <input id="modelInput" type="file" id="fileInput" accept=".stl" />
+        </div>
+      </div>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
