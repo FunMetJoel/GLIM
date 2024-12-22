@@ -16,33 +16,33 @@ const renderer = new THREE.WebGLRenderer({
 
 renderer.setPixelRatio(window.devicePixelRatio)
 renderer.setSize(vieuw3D.clientWidth, vieuw3D.clientHeight)
-camera.position.set(10, 10, 10);
+camera.position.set(5, 7.5, 10);
 camera.lookAt(0, 0, 0);
 
 renderer.render(scene, camera)
 renderer.setClearColor( 0x130f40, 1);
 
-
-const geometry = new THREE.TorusGeometry(1, 0.3, 16, 100)
-const material = new THREE.MeshStandardMaterial({ color: 0xFF6347 })
-const torus = new THREE.Mesh(geometry, material)
-
-scene.add(torus)
-
 const pointLight = new THREE.PointLight(0xffffff)
 pointLight.position.set(10, 10, 10)
 pointLight.intensity = 200
 
-scene.add(pointLight)
-
 const ambientLight = new THREE.AmbientLight(0xffffff)
-scene.add(ambientLight)
+
+const boundingBox = new THREE.BoxGeometry(10, 5, 10)
+const boundingBoxMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true })
+const boundingBoxMesh = new THREE.Mesh(boundingBox, boundingBoxMaterial)
+boundingBoxMesh.position.set(0, 2.5, 0)
+const boxhelper = new THREE.BoxHelper(boundingBoxMesh, 0xffff00)
+
+const connector = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
+connector.position.set(0, 5, 0)
 
 const gridHelper = new THREE.GridHelper(10, 10)
-const axesHelper = new THREE.AxesHelper(5);
-scene.add(gridHelper, axesHelper)
+const axesHelper = new THREE.AxesHelper(2);
 
 const controls = new OrbitControls(camera, renderer.domElement)
+
+clearScene()
 
 function animate() {
   requestAnimationFrame(animate)
@@ -83,9 +83,7 @@ function loadFile(event) {
     const geometry = loader.parse(contents);
 
     // Clear previous object
-    scene.clear();
-    scene.add(ambientLight, pointLight);
-    scene.add(gridHelper, axesHelper)
+    clearScene();
 
     // Create a material and mesh
     const material = new THREE.MeshStandardMaterial({ color: 0xFF6347 });
@@ -100,7 +98,9 @@ function loadFile(event) {
       boundingBox.max.y - boundingBox.min.y,
       boundingBox.max.z - boundingBox.min.z
     );
-    mesh.scale.setScalar(10 / maxDim);
+    mesh.scale.setScalar(5 / maxDim);
+    mesh.rotateX(-Math.PI / 2);
+    mesh.position.set(0, 2.5, 0);
 
     // Add the mesh to the scene
     scene.add(mesh);
@@ -110,3 +110,10 @@ function loadFile(event) {
 }
 
 modelInput.addEventListener('change', loadFile)
+
+function clearScene() {
+  scene.clear();
+  scene.add(ambientLight, pointLight);
+  scene.add(connector)
+  scene.add(gridHelper, axesHelper, boxhelper)
+}
