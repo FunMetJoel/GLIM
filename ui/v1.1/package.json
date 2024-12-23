@@ -1,17 +1,15 @@
 {
-  "name": "treeslicer",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "v1.1",
+  "version": "1.0.0",
+  "main": "main.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "electron ."
   },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
   "devDependencies": {
-    "vite": "^6.0.3"
-  },
-  "dependencies": {
-    "three": "^0.171.0"
+    "electron": "^33.2.1"
   }
 }

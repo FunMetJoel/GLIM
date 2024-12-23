@@ -42,3 +42,19 @@ h1 {
   padding: 0;
   text-align: center;
 }
+
+#switchCamButton {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+
+.position-input {
+  width: 20%;
+  margin-top: 10px;
+}
+
+.rotation-input {
+  width: 20%;
+  margin-top: 10px;
+}

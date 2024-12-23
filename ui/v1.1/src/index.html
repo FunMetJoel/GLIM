@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>Vite App</title>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" type="text/css" href="style.css" />
+    <script type="importmap">
+      {
+				"imports": {
+					"three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+          "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/",
+          "three/examples/jsm/controls/OrbitControls": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/OrbitControls.js",
+          "three/examples/jsm/loaders/STLLoader": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/STLLoader.js",
+          "three/addons/controls/TransformControls": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/controls/TransformControls.js"
+        }
+			}
+    </script>
+  </head>
+  <body>
+    <main>
+      <div id="SceneVieuw">
+        <button id="switchCamButton">Switch Camera</button>
+        <canvas id="Vieuwer"></canvas>
+      </div>
+      <div id="sidebar">
+        <h1>GLIM slicer</h1>
+        <hr>
+        <div id="modelImport">
+          <input id="model-input" type="file" id="fileInput" accept=".stl" />
+          <select id="model-unit">
+            <option value="mm">mm</option>
+            <option value="cm">cm</option>
+            <option value="dm">dm</option>
+            <option value="m">m</option>
+            <option value="in">in</option>
+            <option value="ft">ft</option>
+          </select>
+      </div>
+      
+      <hr>
+      <div id="modelScale">
+        <label for="scale">Scale(%):</label>
+        <input type="number" id="scale-input" name="scale" value="100" />
+      </div>
+      <div id="modelPosition">
+        <label for="position">Position:</label>
+        <input type="number" id="position-x" name="position" class="position-input" value="0" />
+        <input type="number" id="position-y" name="position" class="position-input" value="0" />
+        <input type="number" id="position-z" name="position" class="position-input" value="0" />
+        <label for="position">mm</label>
+      </div>
+      <div id="modelRotation">
+        <label for="rotation">Rotation:</label>
+        <input type="number" id="rotation-x" name="rotation" class="rotation-input" value="0" />
+        <input type="number" id="rotation-y" name="rotation" class="rotation-input" value="0" />
+        <input type="number" id="rotation-z" name="rotation" class="rotation-input" value="0" />
+        <label for="rotation">°</label>
+      </div>
+      <hr>
+      <div id="rotation">
+        <label for="doRotation">Rotate:</label>
+        <input type="checkbox" id="doRotation" name="doRotation" value="true" />
+      </div>
+      <div id="calculateRotationBounds">
+        <button id="calculateRotationBoundsButton">Calculate Rotation Bounds</button>
+      </div>
+      <hr>
+
+    </main>
+    <script type="module" src="script.js"></script>
+  </body>
+</html>

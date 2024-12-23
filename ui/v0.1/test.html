@@ -53,7 +53,9 @@
             reader.onload = function(e) {
                 const contents = e.target.result;
                 const loader = new THREE.STLLoader();
+                console.log(loader);
                 const geometry = loader.parse(contents);
+                console.log(geometry);
 
                 // Clear previous object
                 scene.clear();
@@ -66,8 +68,11 @@
                 const mesh = new THREE.Mesh(geometry, material);
 
                 // Center and scale the mesh
+                console.log(geometry);
                 geometry.center();
+                console.log(geometry);
                 geometry.computeBoundingBox();
+                console.log(geometry);
                 const boundingBox = geometry.boundingBox;
                 const maxDim = Math.max(
                     boundingBox.max.x - boundingBox.min.x,
