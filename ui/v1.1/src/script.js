@@ -21,6 +21,19 @@ scene.animate()
 scene.createGrid(10, 10)
 scene.setBounds(10, 6, 6)
 
+// const event = new CustomEvent('transformChanged', { detail: { position: this.position, rotation: this.rotation } })
+scene.addEventListener('transformChanged', function(event){
+  positionInputs[0].value = Math.round(event.detail.position.x * 10)
+  positionInputs[1].value = Math.round(event.detail.position.y * 10)
+  positionInputs[2].value = Math.round(event.detail.position.z * 10)
+
+  rotationInputs[0].value = Math.round(event.detail.rotation.x)
+  rotationInputs[1].value = Math.round(event.detail.rotation.y)
+  rotationInputs[2].value = Math.round(event.detail.rotation.z)
+
+  console.log('transformChanged', event.detail)
+});
+
 const switchCameraButton = document.querySelector('#switchCamButton')
 switchCameraButton.addEventListener('click', scene.switchCamera.bind(scene))
 
@@ -104,8 +117,8 @@ calculateRotationBoundsButton.addEventListener('click', function(){
   geometry.scale(scene.scale, scene.scale, scene.scale)
   geometry.rotateX(-Math.PI / 2);
   geometry.rotateX(scene.rotation.x / 180 * Math.PI)
-  geometry.rotateY(-scene.rotation.z / 180 * Math.PI)
-  geometry.rotateZ(scene.rotation.y / 180 * Math.PI)
+  geometry.rotateY(scene.rotation.z / 180 * Math.PI)
+  geometry.rotateZ(-scene.rotation.y / 180 * Math.PI)
   geometry.translate(scene.position.x, scene.position.y, scene.position.z)
 
   const output = getOuterPoint(geometry);
@@ -132,4 +145,8 @@ calculateRotationBoundsButton.addEventListener('click', function(){
   const circle = new THREE.Line(circleGeometry, material);
 
   scene.scene.add(circle);
+
+  const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }));
+
+  scene.scene.add(mesh);
 });

@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
-import { TransformControls } from 'three/addons/controls/TransformControls';
+import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
 
 export default class Scene {
     constructor(vieuw3D, vieuw3DContainer) {
@@ -12,6 +12,7 @@ export default class Scene {
         this.bounds = { x: 10, y: 10, z: 10 }
         this.currentGeometry = null
         this.currentGeometryMesh = null
+        this.slicedGeometryMesh = null
         this.scale = 0.1
         this.position = { x: 0, y: 0, z: 0 }
         this.rotation = { x: 0, y: 0, z: 0 }
@@ -52,7 +53,76 @@ export default class Scene {
 
         this.perspectiveOrbitControls = new OrbitControls(this.PerspectiveCamera, this.renderer.domElement)
         this.orthographicOrbitControls = new OrbitControls(this.OrthographicCamera, this.renderer.domElement)
+        this.TransformControls = new TransformControls(this.camera, this.renderer.domElement)
+        this.TransformControls.userData.keep = true
         window.addEventListener('resize', () => this.onResize())
+
+        this.TransformControls.addEventListener('dragging-changed', function (event) {
+            this.perspectiveOrbitControls.enabled = !event.value;
+            this.orthographicOrbitControls.enabled = !event.value;
+        }.bind(this));
+
+        this.transformChangedEventTarget = new EventTarget()
+
+        this.TransformControls.setRotationSnap(THREE.MathUtils.degToRad(1))
+        this.TransformControls.setTranslationSnap(0.1)
+
+        this.TransformControls.addEventListener('change', function (event) {
+
+            if (!this.currentGeometryMesh) return
+
+            this.position = {
+                x: this.currentGeometryMesh.position.x,
+                y: this.currentGeometryMesh.position.y - (this.bounds.y / 2),
+                z: this.currentGeometryMesh.position.z
+            }
+
+            this.rotation = {
+                x: this.currentGeometryMesh.rotation.x / Math.PI * 180,
+                y: (this.currentGeometryMesh.rotation.y / Math.PI * 180) + (Math.PI / 2),
+                z: this.currentGeometryMesh.rotation.z / Math.PI * 180
+            }
+
+            const nEvent = new CustomEvent('transformChanged', { detail: { position: this.position, rotation: this.rotation } })
+            this.transformChangedEventTarget.dispatchEvent(nEvent)
+            
+        }.bind(this));
+
+
+        window.addEventListener('keydown', (event) => {
+            switch (event.key) {
+                case 't': // Press 't' for translate mode
+                    this.TransformControls.setMode('translate');
+                    break;
+                case 'r': // Press 'r' for rotate mode
+                    this.TransformControls.setMode('rotate');
+                    break;
+                case 'Control':
+                    this.TransformControls.setTranslationSnap(1)
+                    this.TransformControls.setRotationSnap(THREE.MathUtils.degToRad(10))
+                    break;
+            }
+        });
+
+        window.addEventListener('keyup', (event) => {
+            switch (event.key) {
+                case 'Control':
+                    this.TransformControls.setTranslationSnap(0.1)
+                    this.TransformControls.setRotationSnap(THREE.MathUtils.degToRad(1))
+                    break;
+            }
+        });
+
+        this.scene.add(this.TransformControls)
+
+    }
+
+    addEventListener(eventName, callback) {
+        this.transformChangedEventTarget.addEventListener(eventName, callback)
+    }
+
+    removeEventListener(eventName, callback) {
+        this.transformChangedEventTarget.removeEventListener(eventName, callback)
     }
 
     setupBase() {
@@ -131,15 +201,15 @@ export default class Scene {
         
         this.pointLight.position.copy(this.OrthographicCamera.position)
 
-        if (this.doRotate && this.currentGeometryMesh) {
+        if (this.doRotate && this.slicedGeometryMesh) {
             const rotationSpeed = 0.001 * (Date.now() - this.lastAnimationFrameTime)
-            console.log(rotationSpeed)
             this.rotationTime += rotationSpeed
             const t = this.rotationTime
-            this.currentGeometryMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), rotationSpeed)
+            this.slicedGeometryMesh.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), rotationSpeed)
+            this.connector.rotateOnWorldAxis(new THREE.Vector3(0, 1, 0), rotationSpeed)
 
             const circleLength = Math.sqrt(this.position.x ** 2 + this.position.z ** 2)
-            this.currentGeometryMesh.position.set(
+            this.slicedGeometryMesh.position.set(
                 Math.cos(-t) * circleLength, 
                 this.position.y + (this.bounds.y / 2), 
                 Math.sin(-t) * circleLength
@@ -181,12 +251,54 @@ export default class Scene {
             const material = new THREE.MeshStandardMaterial({ color: 0xFF6347 });
             
             // Define the box bounds in world space
-            const boxMin = new THREE.Vector3(-2.5, -2.5, -2.5);
-            const boxMax = new THREE.Vector3(2.5, 2.5, 2.5);
+            const boxMin = new THREE.Vector3(-this.bounds.x/2, 0, -this.bounds.z/2);
+            const boxMax = new THREE.Vector3(this.bounds.x/2, this.bounds.y, this.bounds.z/2);
             const insideColor = new THREE.Color(0x00ff00); // Color for inside the box
             const outsideColor = new THREE.Color(0xff0000); // Color for outside the box
-
-    
+         
+            material.onBeforeCompile = function (shader) {
+                shader.uniforms.boxMin = { value: boxMin };
+                shader.uniforms.boxMax = { value: boxMax };
+                shader.uniforms.insideColor = { value: insideColor };
+                shader.uniforms.outsideColor = { value: outsideColor };
+            
+                shader.vertexShader = `
+                    varying vec3 vWorldPosition;
+                    ${shader.vertexShader}
+                `.replace(
+                    `#include <worldpos_vertex>`,
+                    `
+                        #include <worldpos_vertex>
+                        vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+                    `
+                );
+            
+                shader.fragmentShader = `
+                    uniform vec3 boxMin;
+                    uniform vec3 boxMax;
+                    uniform vec3 insideColor;
+                    uniform vec3 outsideColor;
+                    varying vec3 vWorldPosition;
+                    ${shader.fragmentShader}
+                `.replace(
+                    `#include <dithering_fragment>`,
+                    `
+                        vec3 color = outsideColor;
+                        if (vWorldPosition.x > boxMin.x && vWorldPosition.x < boxMax.x &&
+                            vWorldPosition.y > boxMin.y && vWorldPosition.y < boxMax.y &&
+                            vWorldPosition.z > boxMin.z && vWorldPosition.z < boxMax.z) {
+                            color = insideColor;
+                        }
+            
+                        // Combine the color with the default lighting and shadows
+                        vec3 finalColor = color * (gl_FragColor.rgb / gl_FragColor.a);
+                        gl_FragColor = vec4(finalColor, 1.0);
+            
+                        #include <dithering_fragment>
+                    `
+                );
+            };
+            
 
             this.currentGeometryMesh = new THREE.Mesh(geometry, material);
             
@@ -197,9 +309,11 @@ export default class Scene {
             this.currentGeometryMesh.rotateZ(this.rotation.z / 180 * Math.PI);
             this.currentGeometryMesh.position.set(this.position.x, this.position.y + (this.bounds.y / 2), this.position.z);
 
+            this.TransformControls.attach(this.currentGeometryMesh)
 
             // Add the mesh to the scene
             this.scene.add(this.currentGeometryMesh);
+            this.createSlicedMesh()
         }
     }
 
@@ -226,12 +340,18 @@ export default class Scene {
         reader.readAsArrayBuffer(file)
     }
 
+    createSlicedMesh () {
+        this.slicedGeometryMesh = this.currentGeometryMesh.clone()
+        this.scene.add(this.slicedGeometryMesh)
+    }
+
     switchCamera() {
         if (this.camera === this.PerspectiveCamera) {
             this.camera = this.OrthographicCamera
         } else {
             this.camera = this.PerspectiveCamera
         }
+        this.TransformControls.camera = this.camera
     }
 
     setScale(scale) {
