@@ -78,10 +78,12 @@ export default class Scene {
             }
 
             this.rotation = {
-                x: this.currentGeometryMesh.rotation.x / Math.PI * 180,
-                y: (this.currentGeometryMesh.rotation.y / Math.PI * 180) + (Math.PI / 2),
+                x: (this.currentGeometryMesh.rotation.x / Math.PI * 180) + 90,
+                y: (this.currentGeometryMesh.rotation.y / Math.PI * 180),
                 z: this.currentGeometryMesh.rotation.z / Math.PI * 180
             }
+
+            console.log(this.position, this.rotation)
 
             const nEvent = new CustomEvent('transformChanged', { detail: { position: this.position, rotation: this.rotation } })
             this.transformChangedEventTarget.dispatchEvent(nEvent)
@@ -100,6 +102,9 @@ export default class Scene {
                 case 'Control':
                     this.TransformControls.setTranslationSnap(1)
                     this.TransformControls.setRotationSnap(THREE.MathUtils.degToRad(10))
+                    break;
+                case 'Escape':
+                    this.TransformControls.detach()
                     break;
             }
         });
@@ -143,9 +148,15 @@ export default class Scene {
         this.connector = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.5), new THREE.MeshBasicMaterial({ color: 0x00ff00 }))
         this.connector.userData.keep = true
 
+        this.roerboon = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.75), new THREE.MeshStandardMaterial({ color: 0xffffff }))
+        this.roerboon.userData.keep = true
+        this.roerboon.rotateX(Math.PI / 2)
+        this.roerboon.position.set(0, 0.25, 0)
+
+        
         this.setupBoundingBox(this.bounds.x, this.bounds.y, this.bounds.z)
 
-        this.scene.add(this.pointLight, this.ambientLight, this.boxhelper, this.connector)
+        this.scene.add(this.pointLight, this.ambientLight, this.boxhelper, this.connector, this.roerboon)
     }
 
     setupBoundingBox(width, height, depth) {
@@ -200,6 +211,8 @@ export default class Scene {
         requestAnimationFrame(() => this.animate())
         
         this.pointLight.position.copy(this.OrthographicCamera.position)
+
+        this.roerboon.rotateZ(0.3)
 
         if (this.doRotate && this.slicedGeometryMesh) {
             const rotationSpeed = 0.001 * (Date.now() - this.lastAnimationFrameTime)
@@ -299,8 +312,9 @@ export default class Scene {
                 );
             };
             
-
-            this.currentGeometryMesh = new THREE.Mesh(geometry, material);
+            // transparent material
+            const transpartenMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, transparent: true, opacity: 0.4 });
+            this.currentGeometryMesh = new THREE.Mesh(geometry, transpartenMaterial);
             
             this.currentGeometryMesh.scale.setScalar(this.scale);
             this.currentGeometryMesh.rotateX(-Math.PI / 2);
@@ -342,6 +356,59 @@ export default class Scene {
 
     createSlicedMesh () {
         this.slicedGeometryMesh = this.currentGeometryMesh.clone()
+        // Create a material and mesh
+        const material = new THREE.MeshStandardMaterial({ color: 0xFF6347 });
+                    
+        // Define the box bounds in world space
+        const boxMin = new THREE.Vector3(-this.bounds.x/2, 0, -this.bounds.z/2);
+        const boxMax = new THREE.Vector3(this.bounds.x/2, this.bounds.y, this.bounds.z/2);
+        const insideColor = new THREE.Color(0x00ff00); // Color for inside the box
+        const outsideColor = new THREE.Color(0xff0000); // Color for outside the box
+
+        material.onBeforeCompile = function (shader) {
+            shader.uniforms.boxMin = { value: boxMin };
+            shader.uniforms.boxMax = { value: boxMax };
+            shader.uniforms.insideColor = { value: insideColor };
+            shader.uniforms.outsideColor = { value: outsideColor };
+
+            shader.vertexShader = `
+                varying vec3 vWorldPosition;
+                ${shader.vertexShader}
+            `.replace(
+                `#include <worldpos_vertex>`,
+                `
+                    #include <worldpos_vertex>
+                    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+                `
+            );
+
+            shader.fragmentShader = `
+                uniform vec3 boxMin;
+                uniform vec3 boxMax;
+                uniform vec3 insideColor;
+                uniform vec3 outsideColor;
+                varying vec3 vWorldPosition;
+                ${shader.fragmentShader}
+            `.replace(
+                `#include <dithering_fragment>`,
+                `
+                    vec3 color = outsideColor;
+                    if (vWorldPosition.x > boxMin.x && vWorldPosition.x < boxMax.x &&
+                        vWorldPosition.y > boxMin.y && vWorldPosition.y < boxMax.y &&
+                        vWorldPosition.z > boxMin.z && vWorldPosition.z < boxMax.z) {
+                        color = insideColor;
+                    }
+
+                    // Combine the color with the default lighting and shadows
+                    vec3 finalColor = color * (gl_FragColor.rgb / gl_FragColor.a);
+                    gl_FragColor = vec4(finalColor, 1.0);
+
+                    #include <dithering_fragment>
+                `
+            );
+        };
+
+        this.slicedGeometryMesh.material = material
         this.scene.add(this.slicedGeometryMesh)
     }
 
