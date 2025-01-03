@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
 
 import Scene from './SceneManager.js'
-import { getOuterPoint } from './geometryCalculations.js'
+import { getOuterPoint, ensureIndexed, colorByDistance } from './geometryCalculations.js'
 
 var currentGeometry = null
 
@@ -54,7 +54,6 @@ function loadStlFile(event){
 
 // When file selected in input, load the stl file and display it
 modelInput.addEventListener('change', loadStlFile)
-
 
 function calculateScale(){
   var scale = parseFloat(scaleInput.value) / 100
@@ -149,4 +148,19 @@ calculateRotationBoundsButton.addEventListener('click', function(){
   const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0x00ff00, wireframe: true }));
 
   scene.scene.add(mesh);
+});
+
+const sliceButton = document.querySelector('#sliceButton')
+
+sliceButton.addEventListener('click', function(){
+  if (currentGeometry === null){
+    return
+  }
+
+  var geometry = currentGeometry.clone()
+
+  geometry = ensureIndexed(geometry)
+  colorByDistance(geometry, { x: 0, y: 0, z: 0 })
+
+  scene.addSlicedGeometry(geometry)
 });

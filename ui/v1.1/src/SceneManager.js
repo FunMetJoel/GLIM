@@ -2,6 +2,129 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
 import { TransformControls } from 'three/examples/jsm/controls/TransformControls';
+import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
+
+function ensureIndexed(geometry) {
+    if (!geometry.index) {
+        console.warn("Geometry is not indexed. Converting to indexed geometry.");
+        geometry = BufferGeometryUtils.mergeVertices(geometry);
+    }
+    return geometry;
+}
+
+function calculateGeodesicDistances(geometry, startIndex) {
+    const vertices = geometry.attributes.position.array;
+    const vertexCount = vertices.length / 3;
+
+    // Build adjacency list
+    const adjacencyList = Array.from({ length: vertexCount }, () => []);
+    const indexArray = geometry.index.array;
+    for (let i = 0; i < indexArray.length; i += 3) {
+        const a = indexArray[i];
+        const b = indexArray[i + 1];
+        const c = indexArray[i + 2];
+        adjacencyList[a].push(b, c);
+        adjacencyList[b].push(a, c);
+        adjacencyList[c].push(a, b);
+    }
+
+    // check for points in same position
+    for (let i = 0; i < adjacencyList.length; i++) {
+        // get position of vertex i
+        const x = vertices[i * 3];
+        const y = vertices[i * 3 + 1];
+        const z = vertices[i * 3 + 2];
+
+        // check if there are other vertices with the same position
+        for (let j = i + 1; j < adjacencyList.length; j++) {
+            // get position of vertex j
+            const x2 = vertices[j * 3];
+            const y2 = vertices[j * 3 + 1];
+            const z2 = vertices[j * 3 + 2];
+
+            // check if the positions are the same
+            if (x == x2 && y == y2 && z == z2) {
+                adjacencyList[i].push(j);
+                adjacencyList[j].push(i);
+            }
+        }
+    }
+
+    // Dijkstra's algorithm to compute shortest paths
+    const distances = Array(vertexCount).fill(Infinity);
+    distances[startIndex] = 0;
+    const visited = Array(vertexCount).fill(false);
+    const priorityQueue = [[startIndex, 0]];
+
+    while (priorityQueue.length > 0) {
+        priorityQueue.sort((a, b) => a[1] - b[1]); // Sort by distance
+        const [current, dist] = priorityQueue.shift();
+        if (visited[current]) continue;
+        visited[current] = true;
+
+        for (const neighbor of adjacencyList[current]) {
+            const dx = vertices[neighbor * 3] - vertices[current * 3];
+            const dy = vertices[neighbor * 3 + 1] - vertices[current * 3 + 1];
+            const dz = vertices[neighbor * 3 + 2] - vertices[current * 3 + 2];
+            const edgeLength = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            const newDist = dist + edgeLength;
+            if (newDist < distances[neighbor]) {
+                distances[neighbor] = newDist;
+                priorityQueue.push([neighbor, newDist]);
+            }
+        }
+    }
+
+    for (let i = 0; i < distances.length; i++) {
+        if (distances[i] === Infinity) {
+            distances[i] = 0; // Set unreachable vertices to 0
+        }
+    }
+
+    return distances;
+}
+
+function colorMeshByDistance(mesh, referencePoint) {
+    const geometry = mesh.geometry;
+    geometry.computeBoundingBox(); // Ensure bounding box is computed
+
+    // Find the closest vertex to the reference point
+    const position = geometry.attributes.position;
+    console.log(position.getX(0), position.getY(0), position.getZ(0));
+    let closestIndex = 0;
+    let closestDistance = Infinity;
+    for (let i = 0; i < position.count; i++) {
+        const dx = position.getX(i) - referencePoint.x;
+        const dy = position.getY(i) - referencePoint.y;
+        const dz = position.getZ(i) - referencePoint.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < closestDistance) {
+            closestDistance = dist;
+            closestIndex = i;
+        }
+    }
+
+    // Calculate geodesic distances
+    const distances = calculateGeodesicDistances(geometry, closestIndex);
+    console.log(distances);
+
+    // Normalize distances for coloring
+    const maxDistance = Math.max(...distances);
+    const colors = [];
+    for (let i = 0; i < distances.length; i++) {
+        const t = distances[i] / maxDistance; // Normalize
+        colors.push(t, 0, 1 - t); // Map to a blue-red gradient
+    }
+
+    // Apply vertex colors
+    const colorAttr = new THREE.Float32BufferAttribute(colors, 3);
+    geometry.setAttribute('color', colorAttr);
+
+    // Use a material that supports vertex colors
+    mesh.material = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+    });
+}
 
 export default class Scene {
     constructor(vieuw3D, vieuw3DContainer) {
@@ -327,7 +450,19 @@ export default class Scene {
 
             // Add the mesh to the scene
             this.scene.add(this.currentGeometryMesh);
-            this.createSlicedMesh()
+
+            if (this.slicedGeometryMesh) {
+                this.slicedGeometryMesh.rotation.x = this.currentGeometryMesh.rotation.x
+                this.slicedGeometryMesh.rotation.y = this.currentGeometryMesh.rotation.y
+                this.slicedGeometryMesh.rotation.z = this.currentGeometryMesh.rotation.z
+                
+                this.slicedGeometryMesh.position.x = this.currentGeometryMesh.position.x
+                this.slicedGeometryMesh.position.y = this.currentGeometryMesh.position.y
+                this.slicedGeometryMesh.position.z = this.currentGeometryMesh.position.z
+                
+                this.scene.add(this.slicedGeometryMesh)
+            }
+            
         }
     }
 
@@ -354,7 +489,7 @@ export default class Scene {
         reader.readAsArrayBuffer(file)
     }
 
-    createSlicedMesh () {
+    async createSlicedMesh () {
         this.slicedGeometryMesh = this.currentGeometryMesh.clone()
         // Create a material and mesh
         const material = new THREE.MeshStandardMaterial({ color: 0xFF6347 });
@@ -409,7 +544,24 @@ export default class Scene {
         };
 
         this.slicedGeometryMesh.material = material
-        this.scene.add(this.slicedGeometryMesh)
+
+        this.slicedGeometryMesh.geometry = ensureIndexed(this.slicedGeometryMesh.geometry);
+        
+        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+        // const mesh = new THREE.Mesh(geometry, slicedMaterial);
+        this.slicedGeometryMesh.material = slicedMaterial;
+        const referencePoint = new THREE.Vector3(0, 1, 0); // Reference point on the sphere
+        colorMeshByDistance(this.slicedGeometryMesh, referencePoint);
+
+        this.scene.add(this.slicedGeometryMesh);
+    }
+
+    addSlicedGeometry(geometry) {
+        this.slicedGeometryMesh = this.currentGeometryMesh.clone()
+        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+        this.slicedGeometryMesh.material = slicedMaterial;
+        this.slicedGeometryMesh.geometry = geometry;
+        this.reloadScene()
     }
 
     switchCamera() {

@@ -1,41 +1,29 @@
-import * as THREE from 'three'
-import * as BufferGeometryUtils from 'three/examples/jsm/utils/BufferGeometryUtils';
+import * as THREE from 'three';
 
-export function getOuterPoint(geometry) {
-    // gets the point where the x and z values are the greatest
-    let maxDistance = 0
-    let farthestPoint = null
-    console.log(geometry)
+// Create the scene
+const scene = new THREE.Scene();
 
-    const positionAttribute = geometry.attributes.position;
+// Create a camera, which determines what we'll see when we render the scene
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+camera.position.z = 5;
 
-    // Loop through all vertices
-    for (let i = 0; i < positionAttribute.count; i++) {
-        const x = positionAttribute.getX(i);
-        const z = positionAttribute.getZ(i);
+// Create a renderer and add it to the DOM
+const renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-        // Calculate distance from the line f(x, z) = 0
-        const distance = Math.sqrt(x * x + z * z);
+const lighting = new THREE.AmbientLight(0xffffff);
+scene.add(lighting);
 
-        // Check if it's the farthest distance
-        if (distance > maxDistance) {
-            maxDistance = distance;
-            farthestPoint = { x, z };
-        }
-    }
+// Handle window resize
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-    return { farthestPoint, maxDistance };
-}
 
-export function ensureIndexed(geometry) {
-    if (!geometry.index) {
-        console.warn("Geometry is not indexed. Converting to indexed geometry.");
-        geometry = BufferGeometryUtils.mergeVertices(geometry);
-    }
-    return geometry;
-}
-
-export function calculateGeodesicDistances(geometry, startIndex) {
+function calculateGeodesicDistances(geometry, startIndex) {
     const vertices = geometry.attributes.position.array;
     const vertexCount = vertices.length / 3;
 
@@ -53,6 +41,7 @@ export function calculateGeodesicDistances(geometry, startIndex) {
 
     // check for points in same position
     for (let i = 0; i < adjacencyList.length; i++) {
+        console.log(i);
         // get position of vertex i
         const x = vertices[i * 3];
         const y = vertices[i * 3 + 1];
@@ -107,7 +96,8 @@ export function calculateGeodesicDistances(geometry, startIndex) {
     return distances;
 }
 
-export function colorByDistance(geometry, referencePoint) {
+function colorMeshByDistance(mesh, referencePoint) {
+    const geometry = mesh.geometry;
     geometry.computeBoundingBox(); // Ensure bounding box is computed
 
     // Find the closest vertex to the reference point
@@ -125,6 +115,7 @@ export function colorByDistance(geometry, referencePoint) {
             closestIndex = i;
         }
     }
+    console.log(closestIndex);
 
     // Calculate geodesic distances
     const distances = calculateGeodesicDistances(geometry, closestIndex);
@@ -141,4 +132,58 @@ export function colorByDistance(geometry, referencePoint) {
     // Apply vertex colors
     const colorAttr = new THREE.Float32BufferAttribute(colors, 3);
     geometry.setAttribute('color', colorAttr);
+
+    // Use a material that supports vertex colors
+    mesh.material = new THREE.MeshStandardMaterial({
+        vertexColors: true,
+    });
 }
+
+// Example usage
+var geometry = new THREE.SphereGeometry(1, 32, 32); // Create a sphere
+geometry = new THREE.BoxGeometry(1, 1, 1); // Create a cube
+// geometry = new THREE.TorusGeometry(1, 0.4, 16, 100); // Create a torus
+// geometry = new THREE.CylinderGeometry(1, 1, 2, 32); // Create a cylinder
+// geometry = geometry.toNonIndexed(); // Ensure the geometry is non-indexed for simplicity
+
+console.log(geometry);
+const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+const mesh = new THREE.Mesh(geometry, material);
+const referencePoint = new THREE.Vector3(0, 1, 0); // Reference point on the sphere
+
+colorMeshByDistance(mesh, referencePoint);
+scene.add(mesh); // Add to your THREE.js scene
+
+// Create an animation loop
+function animate() {
+    requestAnimationFrame(animate);
+
+    // Rotate the cube for some basic animation
+    mesh.rotation.x += 0.01;
+    mesh.rotation.y += 0.01;
+
+    // Render the scene from the perspective of the camera
+    renderer.render(scene, camera);
+}
+
+renderer.render(scene, camera);
+
+// main.js
+const worker = new Worker('worker.js');
+
+// Send data to the worker
+worker.postMessage({ operation: 'calculate', data: 1000000 });
+
+// Listen for messages from the worker
+worker.onmessage = (event) => {
+  console.log('Result from worker:', event.data);
+};
+
+// Handle errors
+worker.onerror = (error) => {
+  console.error('Worker error:', error);
+};
+
+
+// Start the animation loop
+animate();
