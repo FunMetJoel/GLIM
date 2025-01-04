@@ -206,8 +206,6 @@ export default class Scene {
                 z: this.currentGeometryMesh.rotation.z / Math.PI * 180
             }
 
-            console.log(this.position, this.rotation)
-
             const nEvent = new CustomEvent('transformChanged', { detail: { position: this.position, rotation: this.rotation } })
             this.transformChangedEventTarget.dispatchEvent(nEvent)
             
@@ -489,76 +487,9 @@ export default class Scene {
         reader.readAsArrayBuffer(file)
     }
 
-    async createSlicedMesh () {
-        this.slicedGeometryMesh = this.currentGeometryMesh.clone()
-        // Create a material and mesh
-        const material = new THREE.MeshStandardMaterial({ color: 0xFF6347 });
-                    
-        // Define the box bounds in world space
-        const boxMin = new THREE.Vector3(-this.bounds.x/2, 0, -this.bounds.z/2);
-        const boxMax = new THREE.Vector3(this.bounds.x/2, this.bounds.y, this.bounds.z/2);
-        const insideColor = new THREE.Color(0x00ff00); // Color for inside the box
-        const outsideColor = new THREE.Color(0xff0000); // Color for outside the box
-
-        material.onBeforeCompile = function (shader) {
-            shader.uniforms.boxMin = { value: boxMin };
-            shader.uniforms.boxMax = { value: boxMax };
-            shader.uniforms.insideColor = { value: insideColor };
-            shader.uniforms.outsideColor = { value: outsideColor };
-
-            shader.vertexShader = `
-                varying vec3 vWorldPosition;
-                ${shader.vertexShader}
-            `.replace(
-                `#include <worldpos_vertex>`,
-                `
-                    #include <worldpos_vertex>
-                    vWorldPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-                `
-            );
-
-            shader.fragmentShader = `
-                uniform vec3 boxMin;
-                uniform vec3 boxMax;
-                uniform vec3 insideColor;
-                uniform vec3 outsideColor;
-                varying vec3 vWorldPosition;
-                ${shader.fragmentShader}
-            `.replace(
-                `#include <dithering_fragment>`,
-                `
-                    vec3 color = outsideColor;
-                    if (vWorldPosition.x > boxMin.x && vWorldPosition.x < boxMax.x &&
-                        vWorldPosition.y > boxMin.y && vWorldPosition.y < boxMax.y &&
-                        vWorldPosition.z > boxMin.z && vWorldPosition.z < boxMax.z) {
-                        color = insideColor;
-                    }
-
-                    // Combine the color with the default lighting and shadows
-                    vec3 finalColor = color * (gl_FragColor.rgb / gl_FragColor.a);
-                    gl_FragColor = vec4(finalColor, 1.0);
-
-                    #include <dithering_fragment>
-                `
-            );
-        };
-
-        this.slicedGeometryMesh.material = material
-
-        this.slicedGeometryMesh.geometry = ensureIndexed(this.slicedGeometryMesh.geometry);
-        
-        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
-        // const mesh = new THREE.Mesh(geometry, slicedMaterial);
-        this.slicedGeometryMesh.material = slicedMaterial;
-        const referencePoint = new THREE.Vector3(0, 1, 0); // Reference point on the sphere
-        colorMeshByDistance(this.slicedGeometryMesh, referencePoint);
-
-        this.scene.add(this.slicedGeometryMesh);
-    }
-
     addSlicedGeometry(geometry) {
         this.slicedGeometryMesh = this.currentGeometryMesh.clone()
-        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true }); //wireframe: true
         this.slicedGeometryMesh.material = slicedMaterial;
         this.slicedGeometryMesh.geometry = geometry;
         this.reloadScene()

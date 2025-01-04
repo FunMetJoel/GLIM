@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader'
 
 import Scene from './SceneManager.js'
-import { getOuterPoint, ensureIndexed, colorByDistance } from './geometryCalculations.js'
+import { getOuterPoint, ensureIndexed, colorByDistance, subdivideLongEdges } from './geometryCalculations.js'
 
 var currentGeometry = null
 
@@ -157,10 +157,22 @@ sliceButton.addEventListener('click', function(){
     return
   }
 
+  console.log('clone geometry')
   var geometry = currentGeometry.clone()
 
+  console.log('indexing geometry')
   geometry = ensureIndexed(geometry)
+
+  console.log(geometry)
+
+  console.log('subdivide long edges')
+  geometry = subdivideLongEdges(geometry, 9)
+
+  console.log(geometry)
+
+  console.log('color by distance')
   colorByDistance(geometry, { x: 0, y: 0, z: 0 })
 
+  console.log('add sliced geometry')
   scene.addSlicedGeometry(geometry)
 });

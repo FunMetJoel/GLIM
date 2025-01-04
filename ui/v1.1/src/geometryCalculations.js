@@ -142,3 +142,183 @@ export function colorByDistance(geometry, referencePoint) {
     const colorAttr = new THREE.Float32BufferAttribute(colors, 3);
     geometry.setAttribute('color', colorAttr);
 }
+
+export function subdivideLongEdges(geometry, maxEdgeLength) {
+    const newVertices = [];
+    const newFaces = [];
+    const vertices = geometry.attributes.position.array;
+    const faces = geometry.index.array;
+
+    function getVertex(index) {
+        return new THREE.Vector3(
+            vertices[index * 3],
+            vertices[index * 3 + 1],
+            vertices[index * 3 + 2]
+        );
+    }
+
+    const midpointCache = new Map();
+
+    function getOrCreateMidpoint(v1Index, v2Index) {
+        const key = v1Index < v2Index ? `${v1Index}-${v2Index}` : `${v2Index}-${v1Index}`;
+        if (!midpointCache.has(key)) {
+            const v1 = getVertex(v1Index);
+            const v2 = getVertex(v2Index);
+            const midpoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+            midpointCache.set(key, (vertices.length/3) + newVertices.length);
+            newVertices.push(midpoint);
+        }
+        return midpointCache.get(key);
+    }
+
+    // slecht algoritme, miss later nog een keer naar kijken
+    let index = 0;
+    let cycle = 0;
+
+    for (let i = 0; i < faces.length; i += 3) {
+        newFaces.push([faces[i], faces[i + 1], faces[i + 2]]);
+    }
+
+    while (true) {
+        if (index >= newFaces.length) {
+            break;
+        }
+
+        if (cycle > 0) {
+            break;
+        }
+        
+        const face = newFaces[index];
+        const vertexIndices = face;
+
+        const vertexPositions = vertexIndices.map(index => getVertex(index));
+
+        const edges = [
+            { start: vertexPositions[0], startIndex: vertexIndices[0], end: vertexPositions[1], endIndex: vertexIndices[1], excudedPoint: vertexIndices[2] },
+            { start: vertexPositions[1], startIndex: vertexIndices[1], end: vertexPositions[2], endIndex: vertexIndices[2], excudedPoint: vertexIndices[0] },
+            { start: vertexPositions[2], startIndex: vertexIndices[2], end: vertexPositions[0], endIndex: vertexIndices[0], excudedPoint: vertexIndices[1] },
+        ];
+
+        const edgeLengths = edges.map(edge =>
+            edge.start.distanceTo(edge.end)
+        );
+
+        const longEdges = edgeLengths.filter(len => len > maxEdgeLength);
+        
+        if (longEdges.length === 0) {
+            index++;
+            continue;
+        }else {
+            // Subdivide edges and create new faces
+
+            const midIndices = edges.map(edge => {
+                return getOrCreateMidpoint(edge.startIndex, edge.endIndex);
+            });
+
+            // subdivide the longest edge
+            const longestEdgeIndex = edgeLengths.indexOf(Math.max(...edgeLengths));
+            newFaces.push([
+                edges[longestEdgeIndex].startIndex,
+                midIndices[longestEdgeIndex],
+                edges[longestEdgeIndex].excudedPoint
+            ]);
+            newFaces.push([
+                edges[longestEdgeIndex].endIndex,
+                midIndices[longestEdgeIndex],
+                edges[longestEdgeIndex].excudedPoint
+            ]);
+
+            newFaces.splice(index, 1);
+
+            console.log("Edge", edges[longestEdgeIndex], " was subdivided");
+
+            index = 0;
+            cycle++;
+
+        }
+
+    }
+
+    // for (let i = 0; i < faces.length; i += 3) {
+    //     const v1Index = faces[i];
+    //     const v2Index = faces[i + 1];
+    //     const v3Index = faces[i + 2];
+
+    //     const v1 = getVertex(v1Index);
+    //     const v2 = getVertex(v2Index);
+    //     const v3 = getVertex(v3Index);
+
+    //     const edges = [
+    //         { start: v1, startIndex: v1Index, end: v2, endIndex: v2Index },
+    //         { start: v2, startIndex: v2Index, end: v3, endIndex: v3Index },
+    //         { start: v3, startIndex: v3Index, end: v1, endIndex: v1Index },
+    //     ];
+
+    //     const edgeLengths = edges.map(edge =>
+    //         edge.start.distanceTo(edge.end)
+    //     );
+    //     console.log("edgeLengths", edgeLengths);
+
+    //     const longEdges = edgeLengths.filter(len => len > maxEdgeLength);
+    //     console.log("longEdges", longEdges);
+    //     if (longEdges.length === 0) {
+    //         newFaces.push([v1Index, v2Index, v3Index]);
+    //     } else {
+    //         // Subdivide edges and create new faces
+    //         const midIndices = edges.map(edge => {
+    //             if (edge.start.distanceTo(edge.end) > maxEdgeLength) {
+    //                 return getOrCreateMidpoint(edge.startIndex, edge.endIndex);
+    //             }
+    //             return null;
+    //         });
+
+    //         console.log("Midpoints:", midIndices);
+
+    //         // Logic to create new faces based on which edges are subdivided
+    //         if (midIndices[0] && midIndices[1] && midIndices[2]) {
+    //             // All edges are subdivided: create 4 smaller triangles
+    //             newFaces.push([v1Index, midIndices[0], midIndices[2]]);
+    //             newFaces.push([midIndices[0], v2Index, midIndices[1]]);
+    //             newFaces.push([midIndices[1], v3Index, midIndices[2]]);
+    //             newFaces.push([midIndices[0], midIndices[1], midIndices[2]]);
+    //         } else if (midIndices[0] && midIndices[1]) {
+    //             // Two edges subdivided: create 3 smaller triangles
+    //             newFaces.push([v1Index, midIndices[0], midIndices[1]]);
+    //             newFaces.push([midIndices[0], v2Index, v3Index]);
+    //             newFaces.push([midIndices[1], v3Index, v1Index]);
+    //         } else if (midIndices[0]) {
+    //             // One edge subdivided: create 2 smaller triangles
+    //             newFaces.push([v1Index, midIndices[0], v3Index]);
+    //             newFaces.push([midIndices[0], v2Index, v3Index]);
+    //         } else {
+    //             // No edges subdivided, just add the original face
+    //             newFaces.push([v1Index, v2Index, v3Index]);
+    //         }
+    //     }
+    // }
+
+    // Update the geometry with new vertices and faces
+    let positionArray = new Float32Array((geometry.attributes.position.array.length)+(newVertices.length * 3));
+
+    for (let i = 0; i < geometry.attributes.position.array.length; i++) {
+        positionArray[i] = geometry.attributes.position.array[i];
+    }
+
+    const startIndex = geometry.attributes.position.array.length;
+    for (let i = 0; i < newVertices.length; i++) {
+        positionArray[startIndex + i * 3] = newVertices[i].x;
+        positionArray[startIndex + i * 3 + 1] = newVertices[i].y;
+        positionArray[startIndex + i * 3 + 2] = newVertices[i].z;
+    }
+
+    console.log("newVertices", newVertices);
+    console.log("positionArray", positionArray);
+    
+
+    const newGeometry = new THREE.BufferGeometry();
+    newGeometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+    newGeometry.setIndex(newFaces.flat());
+    newGeometry.computeVertexNormals();
+
+    return newGeometry;
+}
