@@ -1,11 +1,250 @@
 import * as THREE from 'three';
 
+function ensureIndexed(geometry) {
+    if (!geometry.index) {
+        console.warn("Geometry is not indexed. Converting to indexed geometry.");
+        geometry = BufferGeometryUtils.mergeVertices(geometry);
+    }
+    return geometry;
+}
+
+export function subdivideLongEdges(geometry, maxEdgeLength) {
+    const newVertices = [];
+    const newFaces = [];
+    const vertices = geometry.attributes.position.array;
+    const faces = geometry.index.array;
+
+    function getVertex(index) {
+        return new THREE.Vector3(
+            vertices[index * 3],
+            vertices[index * 3 + 1],
+            vertices[index * 3 + 2]
+        );
+    }
+
+    function getVertexFromAll(index) {
+        let positionArray = new Float32Array((geometry.attributes.position.array.length)+(newVertices.length * 3));
+
+        for (let i = 0; i < geometry.attributes.position.array.length; i++) {
+            positionArray[i] = geometry.attributes.position.array[i];
+        }
+
+        const startIndex = geometry.attributes.position.array.length;
+        for (let i = 0; i < newVertices.length; i++) {
+            positionArray[startIndex + i * 3] = newVertices[i].x;
+            positionArray[startIndex + i * 3 + 1] = newVertices[i].y;
+            positionArray[startIndex + i * 3 + 2] = newVertices[i].z;
+        }
+
+        return new THREE.Vector3(
+            positionArray[index * 3],
+            positionArray[index * 3 + 1],
+            positionArray[index * 3 + 2]
+        );
+    }
+
+    const midpointCache = new Map();
+
+    function getOrCreateMidpoint(v1Index, v2Index) {
+        const key = v1Index < v2Index ? `${v1Index}-${v2Index}` : `${v2Index}-${v1Index}`;
+        if (!midpointCache.has(key)) {
+            const v1 = getVertexFromAll(v1Index);
+            const v2 = getVertexFromAll(v2Index);
+            const midpoint = new THREE.Vector3().addVectors(v1, v2).multiplyScalar(0.5);
+            midpointCache.set(key, (vertices.length/3) + newVertices.length);
+            newVertices.push(midpoint);
+        }
+        return midpointCache.get(key);
+    }
+
+    // slecht algoritme, miss later nog een keer naar kijken
+    let index = 0;
+    let cycle = 0;
+
+    for (let i = 0; i < faces.length; i += 3) {
+        newFaces.push([faces[i], faces[i + 1], faces[i + 2]]);
+    }
+    while (true) {
+        console.log("index", index);
+        for (let i = 0; i < newFaces.length; i++) {
+            console.log(i, newFaces[i]);
+        }
+
+        if (index >= newFaces.length) {
+            break;
+        }
+
+        if (cycle > 14) {
+            console.log("Max cycles reached");
+            break;
+        }
+        
+        const face = newFaces[index];
+        const vertexIndices = face;
+
+        const vertexPositions = vertexIndices.map(index => getVertexFromAll(index, ));
+
+        const edges = [
+            { start: vertexPositions[0], startIndex: vertexIndices[0], end: vertexPositions[1], endIndex: vertexIndices[1], excudedPoint: vertexIndices[2] },
+            { start: vertexPositions[1], startIndex: vertexIndices[1], end: vertexPositions[2], endIndex: vertexIndices[2], excudedPoint: vertexIndices[0] },
+            { start: vertexPositions[2], startIndex: vertexIndices[2], end: vertexPositions[0], endIndex: vertexIndices[0], excudedPoint: vertexIndices[1] },
+        ];
+
+        const edgeLengths = edges.map(edge =>
+            edge.start.distanceTo(edge.end)
+        );
+
+        const longEdges = edgeLengths.filter(len => len > maxEdgeLength);
+        
+        if (longEdges.length === 0) {
+            //newFaces.push([face[0], face[1], face[2]]);
+            index++;
+        } else {
+            const longestEdge = longEdges.indexOf(Math.max(...longEdges));
+            console.log("longestEdge", longEdges, longestEdge);
+
+            const midIndex = getOrCreateMidpoint(edges[longestEdge].startIndex, edges[longestEdge].endIndex);
+
+            newFaces.push([edges[longestEdge].startIndex, midIndex, edges[longestEdge].excudedPoint]);
+            newFaces.push([midIndex, edges[longestEdge].endIndex, edges[longestEdge].excudedPoint]);
+
+            // // Subdivide edges and create new faces
+            // const midIndices = edges.map(edge => {
+            //     if (edge.start.distanceTo(edge.end) > maxEdgeLength) {
+            //         return getOrCreateMidpoint(edge.startIndex, edge.endIndex);
+            //     }
+            //     return null;
+            // });
+
+
+            // // Logic to create new faces based on which edges are subdivided
+            // if (midIndices[0] && midIndices[1] && midIndices[2]) {
+            //     // All edges are subdivided: create 4 smaller triangles
+            //     newFaces.push([face[0], midIndices[0], midIndices[2]]);
+            //     newFaces.push([midIndices[0], face[1], midIndices[1]]);
+            //     newFaces.push([midIndices[1], face[2], midIndices[2]]);
+            //     newFaces.push([midIndices[0], midIndices[1], midIndices[2]]);
+            //     console.log("all edges subdivided");
+            // } else if (midIndices[0] && midIndices[1]) {
+            //     // Two edges subdivided: create 3 smaller triangles
+            //     newFaces.push([face[0], midIndices[0], midIndices[1]]);
+            //     newFaces.push([midIndices[0], face[1], face[2]]);
+            //     newFaces.push([midIndices[1], face[2], face[0]]);
+            //     console.log("two edges subdivided");
+            // } else if (midIndices[0]) {
+            //     // One edge subdivided: create 2 smaller triangles
+            //     newFaces.push([face[0], midIndices[0], face[2]]);
+            //     newFaces.push([midIndices[0], face[1], face[2]]);
+            //     console.log("one edge subdivided");
+            // } else {
+            //     // No edges subdivided, just add the original face
+            //     newFaces.push([face[0], face[1], face[2]]);
+            //     console.log("no edges subdivided");
+            // }
+
+            // remove the original face
+            newFaces.splice(index, 1);
+            
+            cycle++;
+        }
+    }
+
+
+
+    // for (let i = 0; i < faces.length; i += 3) {
+    //     const v1Index = faces[i];
+    //     const v2Index = faces[i + 1];
+    //     const v3Index = faces[i + 2];
+
+    //     const v1 = getVertex(v1Index);
+    //     const v2 = getVertex(v2Index);
+    //     const v3 = getVertex(v3Index);
+
+    //     const edges = [
+    //         { start: v1, startIndex: v1Index, end: v2, endIndex: v2Index },
+    //         { start: v2, startIndex: v2Index, end: v3, endIndex: v3Index },
+    //         { start: v3, startIndex: v3Index, end: v1, endIndex: v1Index },
+    //     ];
+
+    //     const edgeLengths = edges.map(edge =>
+    //         edge.start.distanceTo(edge.end)
+    //     );
+    //     console.log("edgeLengths", edgeLengths);
+
+    //     const longEdges = edgeLengths.filter(len => len > maxEdgeLength);
+    //     console.log("longEdges", longEdges);
+    //     if (longEdges.length === 0) {
+    //         newFaces.push([v1Index, v2Index, v3Index]);
+    //     } else {
+    //         // Subdivide edges and create new faces
+    //         const midIndices = edges.map(edge => {
+    //             if (edge.start.distanceTo(edge.end) > maxEdgeLength) {
+    //                 return getOrCreateMidpoint(edge.startIndex, edge.endIndex);
+    //             }
+    //             return null;
+    //         });
+
+    //         console.log("Midpoints:", midIndices);
+
+    //         // Logic to create new faces based on which edges are subdivided
+    //         if (midIndices[0] && midIndices[1] && midIndices[2]) {
+    //             // All edges are subdivided: create 4 smaller triangles
+    //             newFaces.push([v1Index, midIndices[0], midIndices[2]]);
+    //             newFaces.push([midIndices[0], v2Index, midIndices[1]]);
+    //             newFaces.push([midIndices[1], v3Index, midIndices[2]]);
+    //             newFaces.push([midIndices[0], midIndices[1], midIndices[2]]);
+    //         } else if (midIndices[0] && midIndices[1]) {
+    //             // Two edges subdivided: create 3 smaller triangles
+    //             newFaces.push([v1Index, midIndices[0], midIndices[1]]);
+    //             newFaces.push([midIndices[0], v2Index, v3Index]);
+    //             newFaces.push([midIndices[1], v3Index, v1Index]);
+    //         } else if (midIndices[0]) {
+    //             // One edge subdivided: create 2 smaller triangles
+    //             newFaces.push([v1Index, midIndices[0], v3Index]);
+    //             newFaces.push([midIndices[0], v2Index, v3Index]);
+    //         } else {
+    //             // No edges subdivided, just add the original face
+    //             newFaces.push([v1Index, v2Index, v3Index]);
+    //         }
+
+    //         // remove the original face
+    //      // newFaces.splice(newFaces.indexOf([v1Index, v2Index, v3Index], 1));
+    //     }
+    // }
+
+    // Update the geometry with new vertices and faces
+    let positionArray = new Float32Array((geometry.attributes.position.array.length)+(newVertices.length * 3));
+
+    for (let i = 0; i < geometry.attributes.position.array.length; i++) {
+        positionArray[i] = geometry.attributes.position.array[i];
+    }
+
+    const startIndex = geometry.attributes.position.array.length;
+    for (let i = 0; i < newVertices.length; i++) {
+        positionArray[startIndex + i * 3] = newVertices[i].x;
+        positionArray[startIndex + i * 3 + 1] = newVertices[i].y;
+        positionArray[startIndex + i * 3 + 2] = newVertices[i].z;
+    }
+
+    const newGeometry = new THREE.BufferGeometry();
+    newGeometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+
+    console.log(newFaces);
+    
+    newGeometry.setIndex(newFaces.flat());//new THREE.BufferAttribute(indices2, 3)
+    newGeometry.computeVertexNormals();
+
+    return newGeometry;
+}
+
 // Create the scene
 const scene = new THREE.Scene();
 
 // Create a camera, which determines what we'll see when we render the scene
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 5;
+camera.position.z = 1;
+camera.position.y = 0.5;
+camera.position.x = 0.5;
 
 // Create a renderer and add it to the DOM
 const renderer = new THREE.WebGLRenderer();
@@ -141,26 +380,59 @@ function colorMeshByDistance(mesh, referencePoint) {
 
 // Example usage
 var geometry = new THREE.SphereGeometry(1, 32, 32); // Create a sphere
-geometry = new THREE.BoxGeometry(1, 1, 1); // Create a cube
+//geometry = new THREE.BoxGeometry(1, 1, 1); // Create a cube
+// create triangle geometry
+geometry = new THREE.BufferGeometry();
+const vertices = new Float32Array([
+    0, 0, 0,
+    1, 0, 0,
+    0, 1, 0,
+    1, 1, 0,
+]);
+
+const indices = [
+    0, 2, 1, // First triangle (top-left, bottom-left, top-right)
+    1, 2, 3, // Second triangle (top-right, bottom-left, bottom-right)
+  ];
+geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+geometry.setIndex(indices);//new THREE.BufferAttribute(indices, 1));
+
 // geometry = new THREE.TorusGeometry(1, 0.4, 16, 100); // Create a torus
 // geometry = new THREE.CylinderGeometry(1, 1, 2, 32); // Create a cylinder
 // geometry = geometry.toNonIndexed(); // Ensure the geometry is non-indexed for simplicity
 
 console.log(geometry);
-const material = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true });
+
+geometry = subdivideLongEdges(geometry, 0.4);
+// geometry = subdivideLongEdges(geometry, 0.1);
+// geometry = subdivideLongEdges(geometry, 0.1);
+// geometry = subdivideLongEdges(geometry, 0.1);
+
+// Remove first 3 elements from index array
+// geometry.index.array = geometry.index.array.slice(6);
+
+console.log(geometry);
+
+const material = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
 const mesh = new THREE.Mesh(geometry, material);
+
+const wireframeMesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true }));
+wireframeMesh.position.z = 0.01; // Slightly offset to prevent z-fighting
 const referencePoint = new THREE.Vector3(0, 1, 0); // Reference point on the sphere
 
-colorMeshByDistance(mesh, referencePoint);
+geometry = ensureIndexed(geometry);
+//mesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true });
+//colorMeshByDistance(mesh, referencePoint);
 scene.add(mesh); // Add to your THREE.js scene
+scene.add(wireframeMesh);
 
 // Create an animation loop
 function animate() {
     requestAnimationFrame(animate);
 
     // Rotate the cube for some basic animation
-    mesh.rotation.x += 0.01;
-    mesh.rotation.y += 0.01;
+    // mesh.rotation.x += 0.01;
+    // mesh.rotation.y += 0.01;
 
     // Render the scene from the perspective of the camera
     renderer.render(scene, camera);
