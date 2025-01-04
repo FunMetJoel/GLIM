@@ -367,12 +367,12 @@ export default class Scene {
 
     addSlicedGeometry(geometry) {
         this.slicedGeometryMesh = this.currentGeometryMesh.clone()
-        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, flatShading: true}); //wireframe: true
+        const slicedMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true}); //wireframe: true
         this.slicedGeometryMesh.material = slicedMaterial;
         this.slicedGeometryMesh.geometry = geometry;
         this.reloadScene()
 
-        // add wireframe mesh
+        // // add wireframe mesh
         const wireframeMesh = this.slicedGeometryMesh.clone()
         wireframeMesh.material = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true })
         this.scene.add(wireframeMesh)

@@ -60,53 +60,62 @@ export function subdivideLongEdges(geometry, maxEdgeLength) {
     // slecht algoritme, miss later nog een keer naar kijken
     let index = 0;
     let cycle = 0;
+    const startTimestamp = Date.now();
 
     for (let i = 0; i < faces.length; i += 3) {
         newFaces.push([faces[i], faces[i + 1], faces[i + 2]]);
     }
     while (true) {
+        console.log("cycleStartTimestamp", Date.now() - startTimestamp);
         console.log("index", index);
-        for (let i = 0; i < newFaces.length; i++) {
-            console.log(i, newFaces[i]);
-        }
+        // for (let i = 0; i < newFaces.length; i++) {
+        //     console.log(i, newFaces[i]);
+        // }
+        console.log(1, Date.now() - startTimestamp);
 
         if (index >= newFaces.length) {
             break;
         }
 
-        if (cycle > 14) {
+        if (cycle > 100) {
             console.log("Max cycles reached");
             break;
         }
+        console.log(2, Date.now() - startTimestamp);
         
         const face = newFaces[index];
         const vertexIndices = face;
 
         const vertexPositions = vertexIndices.map(index => getVertexFromAll(index, ));
+        console.log(3, Date.now() - startTimestamp);
 
         const edges = [
             { start: vertexPositions[0], startIndex: vertexIndices[0], end: vertexPositions[1], endIndex: vertexIndices[1], excudedPoint: vertexIndices[2] },
             { start: vertexPositions[1], startIndex: vertexIndices[1], end: vertexPositions[2], endIndex: vertexIndices[2], excudedPoint: vertexIndices[0] },
             { start: vertexPositions[2], startIndex: vertexIndices[2], end: vertexPositions[0], endIndex: vertexIndices[0], excudedPoint: vertexIndices[1] },
         ];
+        console.log(4, Date.now() - startTimestamp);
 
         const edgeLengths = edges.map(edge =>
             edge.start.distanceTo(edge.end)
         );
 
         const longEdges = edgeLengths.filter(len => len > maxEdgeLength);
-        
+        console.log(5, Date.now() - startTimestamp);
+
         if (longEdges.length === 0) {
             //newFaces.push([face[0], face[1], face[2]]);
             index++;
         } else {
-            const longestEdge = longEdges.indexOf(Math.max(...longEdges));
-            console.log("longestEdge", longEdges, longestEdge);
+            const longestEdge = edgeLengths.indexOf(Math.max(...longEdges));
+            console.log(6, Date.now() - startTimestamp);
 
             const midIndex = getOrCreateMidpoint(edges[longestEdge].startIndex, edges[longestEdge].endIndex);
+            console.log(7, Date.now() - startTimestamp);
 
             newFaces.push([edges[longestEdge].startIndex, midIndex, edges[longestEdge].excudedPoint]);
             newFaces.push([midIndex, edges[longestEdge].endIndex, edges[longestEdge].excudedPoint]);
+            console.log(8, Date.now() - startTimestamp);
 
             // // Subdivide edges and create new faces
             // const midIndices = edges.map(edge => {
@@ -116,7 +125,7 @@ export function subdivideLongEdges(geometry, maxEdgeLength) {
             //     return null;
             // });
 
-
+            // todo: Ik kan nog dit doen en dan aan het einde alle driehoeken door midden delen, miss dat dat goed werkt
             // // Logic to create new faces based on which edges are subdivided
             // if (midIndices[0] && midIndices[1] && midIndices[2]) {
             //     // All edges are subdivided: create 4 smaller triangles
@@ -144,73 +153,12 @@ export function subdivideLongEdges(geometry, maxEdgeLength) {
 
             // remove the original face
             newFaces.splice(index, 1);
+            console.log(9, Date.now() - startTimestamp);
             
             cycle++;
+            index = 0;
         }
     }
-
-
-
-    // for (let i = 0; i < faces.length; i += 3) {
-    //     const v1Index = faces[i];
-    //     const v2Index = faces[i + 1];
-    //     const v3Index = faces[i + 2];
-
-    //     const v1 = getVertex(v1Index);
-    //     const v2 = getVertex(v2Index);
-    //     const v3 = getVertex(v3Index);
-
-    //     const edges = [
-    //         { start: v1, startIndex: v1Index, end: v2, endIndex: v2Index },
-    //         { start: v2, startIndex: v2Index, end: v3, endIndex: v3Index },
-    //         { start: v3, startIndex: v3Index, end: v1, endIndex: v1Index },
-    //     ];
-
-    //     const edgeLengths = edges.map(edge =>
-    //         edge.start.distanceTo(edge.end)
-    //     );
-    //     console.log("edgeLengths", edgeLengths);
-
-    //     const longEdges = edgeLengths.filter(len => len > maxEdgeLength);
-    //     console.log("longEdges", longEdges);
-    //     if (longEdges.length === 0) {
-    //         newFaces.push([v1Index, v2Index, v3Index]);
-    //     } else {
-    //         // Subdivide edges and create new faces
-    //         const midIndices = edges.map(edge => {
-    //             if (edge.start.distanceTo(edge.end) > maxEdgeLength) {
-    //                 return getOrCreateMidpoint(edge.startIndex, edge.endIndex);
-    //             }
-    //             return null;
-    //         });
-
-    //         console.log("Midpoints:", midIndices);
-
-    //         // Logic to create new faces based on which edges are subdivided
-    //         if (midIndices[0] && midIndices[1] && midIndices[2]) {
-    //             // All edges are subdivided: create 4 smaller triangles
-    //             newFaces.push([v1Index, midIndices[0], midIndices[2]]);
-    //             newFaces.push([midIndices[0], v2Index, midIndices[1]]);
-    //             newFaces.push([midIndices[1], v3Index, midIndices[2]]);
-    //             newFaces.push([midIndices[0], midIndices[1], midIndices[2]]);
-    //         } else if (midIndices[0] && midIndices[1]) {
-    //             // Two edges subdivided: create 3 smaller triangles
-    //             newFaces.push([v1Index, midIndices[0], midIndices[1]]);
-    //             newFaces.push([midIndices[0], v2Index, v3Index]);
-    //             newFaces.push([midIndices[1], v3Index, v1Index]);
-    //         } else if (midIndices[0]) {
-    //             // One edge subdivided: create 2 smaller triangles
-    //             newFaces.push([v1Index, midIndices[0], v3Index]);
-    //             newFaces.push([midIndices[0], v2Index, v3Index]);
-    //         } else {
-    //             // No edges subdivided, just add the original face
-    //             newFaces.push([v1Index, v2Index, v3Index]);
-    //         }
-
-    //         // remove the original face
-    //      // newFaces.splice(newFaces.indexOf([v1Index, v2Index, v3Index], 1));
-    //     }
-    // }
 
     // Update the geometry with new vertices and faces
     let positionArray = new Float32Array((geometry.attributes.position.array.length)+(newVertices.length * 3));

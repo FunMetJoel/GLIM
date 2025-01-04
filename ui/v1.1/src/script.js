@@ -166,12 +166,12 @@ sliceButton.addEventListener('click', function(){
   console.log(geometry)
 
   console.log('subdivide long edges')
-  geometry = subdivideLongEdges(geometry, 0.9)
+  geometry = subdivideLongEdges(geometry, 1)
 
   console.log(geometry)
 
   console.log('color by distance')
-  colorByDistance(geometry, { x: 0, y: 0, z: 0 })
+  colorByDistance(geometry, { x: 10, y: 10, z: 10 })
 
   console.log('add sliced geometry')
   scene.addSlicedGeometry(geometry)
