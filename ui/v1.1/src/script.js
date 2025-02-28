@@ -166,7 +166,7 @@ sliceButton.addEventListener('click', function(){
   console.log(geometry)
 
   console.log('subdivide long edges')
-  geometry = subdivideLongEdges(geometry, 1)
+  //geometry = subdivideLongEdges(geometry, 1)
 
   console.log(geometry)
 

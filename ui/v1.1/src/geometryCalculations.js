@@ -38,6 +38,7 @@ export function ensureIndexed(geometry) {
 export function calculateGeodesicDistances(geometry, startIndex) {
     const vertices = geometry.attributes.position.array;
     const vertexCount = vertices.length / 3;
+    console.log("Vertex count:", vertexCount);
 
     // Build adjacency list
     const adjacencyList = Array.from({ length: vertexCount }, () => []);
@@ -49,29 +50,68 @@ export function calculateGeodesicDistances(geometry, startIndex) {
         adjacencyList[a].push(b, c);
         adjacencyList[b].push(a, c);
         adjacencyList[c].push(a, b);
+        console.log(i, "/", indexArray.length);
     }
 
-    // check for points in same position
+    // // check for points in same position
+    // for (let i = 0; i < adjacencyList.length; i++) {
+    //     // get position of vertex i
+    //     const x = vertices[i * 3];
+    //     const y = vertices[i * 3 + 1];
+    //     const z = vertices[i * 3 + 2];
+
+    //     // check if there are other vertices with the same position
+    //     for (let j = i + 1; j < adjacencyList.length; j++) {
+    //         console.log("Checking for points in same position", i, j);
+    //         // get position of vertex j
+    //         const x2 = vertices[j * 3];
+    //         const y2 = vertices[j * 3 + 1];
+    //         const z2 = vertices[j * 3 + 2];
+
+    //         // check if the positions are the same
+    //         if (x == x2 && y == y2 && z == z2) {
+    //             adjacencyList[i].push(j);
+    //             adjacencyList[j].push(i);
+    //         }
+    //     }
+    // }
+
+    // Create a map to group vertices by their position
+    const positionMap = new Map();
+    var lastPercentage = 0;
+
     for (let i = 0; i < adjacencyList.length; i++) {
-        // get position of vertex i
+        if (Math.floor((i / adjacencyList.length) * 100) > lastPercentage) {
+            lastPercentage = Math.floor((i / adjacencyList.length) * 100);
+            console.log("Creating position map", lastPercentage, "%");
+        }
+        // Get position of vertex i
         const x = vertices[i * 3];
         const y = vertices[i * 3 + 1];
         const z = vertices[i * 3 + 2];
+        const key = `${x},${y},${z}`; // Unique key for the position
 
-        // check if there are other vertices with the same position
-        for (let j = i + 1; j < adjacencyList.length; j++) {
-            // get position of vertex j
-            const x2 = vertices[j * 3];
-            const y2 = vertices[j * 3 + 1];
-            const z2 = vertices[j * 3 + 2];
+        // Check if this position already exists in the map
+        if (!positionMap.has(key)) {
+            positionMap.set(key, []);
+        }
 
-            // check if the positions are the same
-            if (x == x2 && y == y2 && z == z2) {
-                adjacencyList[i].push(j);
-                adjacencyList[j].push(i);
+        // Add the current vertex index to the map for this position
+        positionMap.get(key).push(i);
+    }
+
+    // Populate adjacencyList using positionMap
+    positionMap.forEach((indices) => {
+        // For each group of vertices at the same position, connect them
+        for (let i = 0; i < indices.length; i++) {
+            for (let j = i + 1; j < indices.length; j++) {
+                adjacencyList[indices[i]].push(indices[j]);
+                adjacencyList[indices[j]].push(indices[i]);
             }
         }
-    }
+    });
+    console.log("Adjacency list:", adjacencyList);
+
 
     // Dijkstra's algorithm to compute shortest paths
     const distances = Array(vertexCount).fill(Infinity);
@@ -80,6 +120,7 @@ export function calculateGeodesicDistances(geometry, startIndex) {
     const priorityQueue = [[startIndex, 0]];
 
     while (priorityQueue.length > 0) {
+        console.log("Priority queue length:", priorityQueue.length);
         priorityQueue.sort((a, b) => a[1] - b[1]); // Sort by distance
         const [current, dist] = priorityQueue.shift();
         if (visited[current]) continue;
@@ -99,6 +140,7 @@ export function calculateGeodesicDistances(geometry, startIndex) {
     }
 
     for (let i = 0; i < distances.length; i++) {
+        console.log("Distance to vertex", i, ":", distances[i]);
         if (distances[i] === Infinity) {
             distances[i] = 0; // Set unreachable vertices to 0
         }
@@ -109,7 +151,7 @@ export function calculateGeodesicDistances(geometry, startIndex) {
 
 export function colorByDistance(geometry, referencePoint) {
     geometry.computeBoundingBox(); // Ensure bounding box is computed
-
+    console.log("Bounding box cumputed");
     // Find the closest vertex to the reference point
     const position = geometry.attributes.position;
     console.log(position.getX(0), position.getY(0), position.getZ(0));
@@ -125,6 +167,7 @@ export function colorByDistance(geometry, referencePoint) {
             closestIndex = i;
         }
     }
+    console.log("Closest index:", closestIndex);
 
     // Calculate geodesic distances
     const distances = calculateGeodesicDistances(geometry, closestIndex);
